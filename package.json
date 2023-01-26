@@ -1,0 +1,24 @@
+{
+  "name": "gpu-fingerprint",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.html",
+  "type": "module",
+  "scripts": {
+    "start": "parcel index.html --open",
+    "build": "parcel build index.html"
+  },
+  "dependencies": {
+    "three": "0.132.2",
+    "three.js": "0.77.1",
+    "typescript": "4.3.5",
+    "webgl": "0.0.7"
+  },
+  "devDependencies": {
+    "@babel/core": "7.2.0"
+  },
+  "resolutions": {
+    "@babel/preset-env": "7.13.8"
+  },
+  "keywords": []
+}

@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Parcel Sandbox</title>
+    <meta charset="UTF-8" />
+    <link rel="stylesheet" href="./src/styles.css" />
+  </head>
+
+  <body>
+    <canvas id="c"></canvas>
+  </body>
+
+  <script type="module">
+    import * as THREE from "https://threejsfundamentals.org/threejs/resources/threejs/r132/build/three.module.js";
+    import { OrbitControls } from "https://threejsfundamentals.org/threejs/resources/threejs/r132/examples/jsm/controls/OrbitControls.js";
+    import { OBJLoader } from "https://threejsfundamentals.org/threejs/resources/threejs/r132/examples/jsm/loaders/OBJLoader.js";
+    import { MTLLoader } from "https://threejsfundamentals.org/threejs/resources/threejs/r132/examples/jsm/loaders/MTLLoader.js";
+    import { GLTFLoader } from "https://threejsfundamentals.org/threejs/resources/threejs/r132/examples/jsm/loaders/GLTFLoader.js";
+
+    function getFeingerPrint() {
+      function getGpuData() {
+        return new Promise((res) => {
+          const finalResults = {};
+
+          animate1();
+
+          function animate1() {
+            const canvas = document.querySelector("#c");
+            const scene = new THREE.Scene();
+            const loader = new GLTFLoader();
+
+            loader.load(
+              "path/to/model.glb",
+              function (gltf) {
+                scene.add(gltf.scene);
+              },
+              undefined,
+              function (error) {
+                console.error(error);
+              }
+            );
+            const camera = new THREE.PerspectiveCamera(
+              35,
+              window.innerWidth / window.innerHeight,
+              0.1,
+              1000
+            );
+
+            const renderer = new THREE.WebGLRenderer({ canvas });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            document.body.appendChild(renderer.domElement);
+
+            const geometry = new THREE.BoxGeometry();
+            const material = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
+            const cube = new THREE.Mesh(geometry, material);
+            scene.add(cube);
+
+            camera.position.z = 5;
+
+            let frames;
+            function render() {
+              frames = requestAnimationFrame(render);
+              cube.rotation.x += 0.05;
+              cube.rotation.y += 0.05;
+
+              renderer.render(scene, camera);
+            }
+            render();
+
+            const data = {};
+
+            const interval = setInterval(() => {
+              if (data.first) {
+                if (data.second) {
+                  if (data.third) {
+                    clearInterval(interval);
+                  } else data.third = frames - data.first - data.second;
+                } else data.second = frames - data.first;
+              } else data.first = frames;
+            }, 5000);
+
+            setTimeout(() => {
+              window.cancelAnimationFrame(frames);
+
+              finalResults.firstPhaseFrames = frames;
+              data.average = (
+                (data.first + data.second + data.third) /
+                3
+              ).toFixed(1);
+
+              const arr = [
+                Math.abs(data.first - data.second),
+                Math.abs(data.first - data.third),
+                Math.abs(data.second - data.third)
+              ].sort((a, b) => a - b);
+
+              data.percentile = findNumByPercentile(arr, 95);
+              console.log("First Phase = ", data, finalResults);
+              animate2();
+            }, 15001);
+          }
+
+          // 4.139
+          // = [
+          //     3.77,
+          //     3.79,
+          //     3.9,
+          //     3.96,
+          //     3.99,
+          //     4.03,
+          //     4.13,
+          //     4.16,
+          //     4.26,
+          //     4.28,
+          //     4.3,
+          //     4.47,
+          //     4.55,
+          //     4.56,
+          //     4.64,
+          //     4.69,
+          //     4.85,
+          //     4.99,
+          //     5.14
+          //   ]
+          function findNumByPercentile(arr, percentile) {
+            arr.sort((a, b) => a - b);
+            const fractionalSerialNumber =
+              (percentile / 100) * (arr.length - 1) + 1;
+            const fractionalSerialNumberArr = String(
+              fractionalSerialNumber
+            ).split(".");
+            const firstSerialNumberValue = +arr[
+              +fractionalSerialNumberArr[0] - 1
+            ];
+            const nextSerialNumberValue = +arr[+fractionalSerialNumberArr[0]];
+            const fractionalPart = +(
+              fractionalSerialNumber - +fractionalSerialNumberArr[0]
+            ).toFixed(1);
+
+            const result =
+              firstSerialNumberValue +
+              fractionalPart * (nextSerialNumberValue - firstSerialNumberValue);
+            return result;
+          }
+
+          function animate2() {
+            const canvas = document.querySelector("#c");
+            const renderer = new THREE.WebGLRenderer({ canvas });
+
+            const fov = 45;
+            const aspect = 2; // the canvas default
+            const near = 0.1;
+            const far = 100;
+            const camera = new THREE.PerspectiveCamera(fov, aspect, near, far);
+            camera.position.set(0, 10, 20);
+
+            const controls = new OrbitControls(camera, canvas);
+            controls.target.set(0, 5, 0);
+            controls.update();
+
+            const scene = new THREE.Scene();
+            scene.background = new THREE.Color("black");
+
+            {
+              const planeSize = 40;
+
+              const loader = new THREE.TextureLoader();
+              const texture = loader.load(
+                "https://threejsfundamentals.org/threejs/resources/images/checker.png"
+              );
+              texture.wrapS = THREE.RepeatWrapping;
+              texture.wrapT = THREE.RepeatWrapping;
+              texture.magFilter = THREE.NearestFilter;
+              const repeats = planeSize / 2;
+              texture.repeat.set(repeats, repeats);
+
+              const planeGeo = new THREE.PlaneGeometry(planeSize, planeSize);
+              const planeMat = new THREE.MeshPhongMaterial({
+                map: texture,
+                side: THREE.DoubleSide
+              });
+              const mesh = new THREE.Mesh(planeGeo, planeMat);
+              mesh.rotation.x = Math.PI * -0.5;
+              // scene.add(mesh);
+            }
+
+            {
+              const skyColor = 0xb1e1ff; // light blue
+              const groundColor = 0xb97a20; // brownish orange
+              const intensity = 1;
+              const light = new THREE.HemisphereLight(
+                skyColor,
+                groundColor,
+                intensity
+              );
+              scene.add(light);
+            }
+
+            {
+              const color = 0xffffff;
+              const intensity = 1;
+              const light = new THREE.DirectionalLight(color, intensity);
+              light.position.set(0, 10, 0);
+              light.target.position.set(-5, 0, 0);
+              scene.add(light);
+              scene.add(light.target);
+            }
+
+            {
+              const objLoader = new OBJLoader();
+              objLoader.load(
+                "https://threejsfundamentals.org/threejs/resources/models/windmill/windmill.obj",
+                (root) => {
+                  scene.add(root);
+                }
+              );
+            }
+
+            function resizeRendererToDisplaySize(renderer) {
+              const canvas = renderer.domElement;
+              const width = canvas.clientWidth;
+              const height = canvas.clientHeight;
+              const needResize =
+                canvas.width !== width || canvas.height !== height;
+              if (needResize) {
+                renderer.setSize(width, height, false);
+              }
+              return needResize;
+            }
+            let frames;
+
+            function render() {
+              if (resizeRendererToDisplaySize(renderer)) {
+                const canvas = renderer.domElement;
+                camera.aspect = canvas.clientWidth / canvas.clientHeight;
+                camera.updateProjectionMatrix();
+              }
+              frames = requestAnimationFrame(render);
+              scene.rotation.y += 0.05;
+              renderer.render(scene, camera);
+            }
+
+            requestAnimationFrame(render);
+
+            const data = {};
+
+            const interval = setInterval(() => {
+              if (data.first) {
+                if (data.second) {
+                  if (data.third) {
+                    clearInterval(interval);
+                  } else
+                    data.third =
+                      frames -
+                      data.first -
+                      data.second -
+                      finalResults.firstPhaseFrames;
+                } else
+                  data.second =
+                    frames - data.first - finalResults.firstPhaseFrames;
+              } else data.first = frames - finalResults.firstPhaseFrames;
+            }, 5000);
+
+            setTimeout(() => {
+              window.cancelAnimationFrame(frames);
+              data.average = (
+                (data.first + data.second + data.third) /
+                3
+              ).toFixed(1);
+              const arr = [
+                Math.abs(data.first - data.second),
+                Math.abs(data.first - data.third),
+                Math.abs(data.second - data.third)
+              ].sort((a, b) => a - b);
+
+              data.percentile = findNumByPercentile(arr, 95);
+              console.log("Second Phase = ", data, finalResults);
+              finalResults.secondPhaseFrames =
+                frames - finalResults.firstPhaseFrames;
+              animate3();
+            }, 15001);
+          }
+
+          function animate3() {
+            const canvas = document.querySelector("#c");
+            const renderer = new THREE.WebGLRenderer({ canvas });
+
+            const fov = 45;
+            const aspect = 2; // the canvas default
+            const near = 0.1;
+            const far = 100;
+            const camera = new THREE.PerspectiveCamera(fov, aspect, near, far);
+            camera.position.set(0, 10, 20);
+
+            const controls = new OrbitControls(camera, canvas);
+            controls.target.set(0, 5, 0);
+            controls.update();
+
+            const scene = new THREE.Scene();
+            scene.background = new THREE.Color("black");
+
+            {
+              const planeSize = 40;
+
+              const loader = new THREE.TextureLoader();
+              const texture = loader.load(
+                "https://threejsfundamentals.org/threejs/resources/images/checker.png"
+              );
+              texture.wrapS = THREE.RepeatWrapping;
+              texture.wrapT = THREE.RepeatWrapping;
+              texture.magFilter = THREE.NearestFilter;
+              const repeats = planeSize / 2;
+              texture.repeat.set(repeats, repeats);
+
+              const planeGeo = new THREE.PlaneGeometry(planeSize, planeSize);
+              const planeMat = new THREE.MeshPhongMaterial({
+                map: texture,
+                side: THREE.DoubleSide
+              });
+              const mesh = new THREE.Mesh(planeGeo, planeMat);
+              mesh.rotation.x = Math.PI * -0.5;
+              // scene.add(mesh);
+            }
+
+            {
+              const skyColor = 0xb1e1ff; // light blue
+              const groundColor = 0xb97a20; // brownish orange
+              const intensity = 1;
+              const light = new THREE.HemisphereLight(
+                skyColor,
+                groundColor,
+                intensity
+              );
+              scene.add(light);
+            }
+
+            {
+              const color = 0xffffff;
+              const intensity = 1;
+              const light = new THREE.DirectionalLight(color, intensity);
+              light.position.set(5, 10, 2);
+              scene.add(light);
+              scene.add(light.target);
+            }
+
+            {
+              const mtlLoader = new MTLLoader();
+              mtlLoader.load(
+                "https://threejsfundamentals.org/threejs/resources/models/windmill/windmill-fixed.mtl",
+                (mtl) => {
+                  mtl.preload();
+                  const objLoader = new OBJLoader();
+                  mtl.materials.Material.side = THREE.DoubleSide;
+                  objLoader.setMaterials(mtl);
+                  objLoader.load(
+                    "https://threejsfundamentals.org/threejs/resources/models/windmill/windmill.obj",
+                    (root) => {
+                      scene.add(root);
+                    }
+                  );
+                }
+              );
+            }
+
+            function resizeRendererToDisplaySize(renderer) {
+              const canvas = renderer.domElement;
+              const width = canvas.clientWidth;
+              const height = canvas.clientHeight;
+              const needResize =
+                canvas.width !== width || canvas.height !== height;
+              if (needResize) {
+                renderer.setSize(width, height, false);
+              }
+              return needResize;
+            }
+            let frames;
+
+            function render() {
+              if (resizeRendererToDisplaySize(renderer)) {
+                const canvas = renderer.domElement;
+                camera.aspect = canvas.clientWidth / canvas.clientHeight;
+                camera.updateProjectionMatrix();
+              }
+              frames = requestAnimationFrame(render);
+              scene.rotation.y += 0.05;
+              renderer.render(scene, camera);
+            }
+
+            requestAnimationFrame(render);
+
+            const data = {};
+
+            const interval = setInterval(() => {
+              if (data.first) {
+                if (data.second) {
+                  if (data.third) {
+                    clearInterval(interval);
+                  } else
+                    data.third =
+                      frames -
+                      data.first -
+                      data.second -
+                      finalResults.firstPhaseFrames -
+                      finalResults.secondPhaseFrames;
+                } else
+                  data.second =
+                    frames -
+                    data.first -
+                    finalResults.firstPhaseFrames -
+                    finalResults.secondPhaseFrames;
+              } else
+                data.first =
+                  frames -
+                  finalResults.firstPhaseFrames -
+                  finalResults.secondPhaseFrames;
+            }, 5000);
+            setTimeout(() => {
+              window.cancelAnimationFrame(frames);
+              data.average = (
+                (data.first + data.second + data.third) /
+                3
+              ).toFixed(1);
+              const arr = [
+                Math.abs(data.first - data.second),
+                Math.abs(data.first - data.third),
+                Math.abs(data.second - data.third)
+              ].sort((a, b) => a - b);
+
+              data.percentile = findNumByPercentile(arr, 95);
+              finalResults.thirdPhaseFrames =
+                frames -
+                finalResults.firstPhaseFrames -
+                finalResults.secondPhaseFrames;
+              console.log("Third Phase = ", data, finalResults);
+              res(data);
+            }, 15001);
+          }
+        });
+      }
+
+      return new Promise((res) => {
+        getGpuData().then((data) => {
+          // console.log(">>>", data);
+          res("bhdsadkbhadfkvb");
+          // getFeingerPrint();
+          // res(getFingerPrintHash(data.average))
+        });
+      });
+    }
+    getFeingerPrint(); //.then((hash) => console.log("hash===", hash));
+  </script>
+</html>
